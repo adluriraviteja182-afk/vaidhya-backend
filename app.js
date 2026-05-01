@@ -6,16 +6,18 @@ const authRoutes = require("./routes/auth");
 
 const app = express();
 
-// ─── Middleware ────────────────────────────────────────────────
-app.use(cors({ origin: "*" }));
+// ✅ Middleware
+app.use(cors({
+  origin: "*", // for testing (later restrict to Vercel URL)
+}));
 app.use(express.json());
 
-// ─── Health check ──────────────────────────────────────────────
+// ✅ Health check
 app.get("/", (req, res) => {
   res.json({ message: "Pragyan Clinic Backend is running ✅" });
 });
 
-// ─── Routes ────────────────────────────────────────────────────
+// ✅ Routes
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/auth", authRoutes);
 
