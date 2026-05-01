@@ -1,0 +1,26 @@
+{
+  "name": "pragyan-backend",
+  "version": "1.0.0",
+  "description": "Pragyan Clinic backend — appointments, auth, payments, notifications",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "nodemailer": "^6.9.7",
+    "pg": "^8.20.0",
+    "razorpay": "^2.9.6",
+    "twilio": "^4.19.0",
+    "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
