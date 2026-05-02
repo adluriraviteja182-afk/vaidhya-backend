@@ -32,7 +32,27 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    console.log("appointments table ready");
+
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        phone VARCHAR(20) NOT NULL UNIQUE,
+        verified BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pool.execute(`
+      CREATE TABLE IF NOT EXISTS otp_tokens (
+        phone VARCHAR(20) PRIMARY KEY,
+        otp_hash VARCHAR(64) NOT NULL,
+        expires_at DATETIME NOT NULL,
+        attempts INT NOT NULL DEFAULT 0
+      )
+    `);
+
+    console.log("All tables ready");
   } catch (err) {
     console.error("DB init error:", err.message);
   }
