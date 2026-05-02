@@ -12,7 +12,7 @@ async function sendOTPSMS(phone, otp) {
     );
     await twilio.messages.create({
       body: message,
-      from: process.env.TWILIO_PHONE_NUMBER,
+      from: process.env.TWILIO_PHONE,
       to: phone,
     });
     return;
