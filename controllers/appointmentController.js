@@ -15,6 +15,7 @@ async function bookAppointment(req, res) {
 
   const {
     patient_name, patient_email, patient_phone,
+    patient_age, gender,
     doctor, appointment_type, appointment_date,
     appointment_time, reason,
   } = req.body;
@@ -29,11 +30,14 @@ async function bookAppointment(req, res) {
 
     const [result] = await db.execute(
       `INSERT INTO appointments
-        (patient_name, patient_email, patient_phone, doctor, appointment_type,
-         appointment_date, appointment_time, reason, status, razorpay_order_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', ?)`,
-      [patient_name, patient_email, patient_phone, doctor, appointment_type,
-       appointment_date, appointment_time, reason || null, order.id]
+        (patient_name, patient_email, patient_phone, patient_age, gender,
+         doctor, appointment_type, appointment_date, appointment_time,
+         reason, status, razorpay_order_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', ?)`,
+      [patient_name, patient_email, patient_phone,
+       patient_age || null, gender || null,
+       doctor, appointment_type, appointment_date,
+       appointment_time, reason || null, order.id]
     );
 
     return res.status(201).json({
@@ -79,7 +83,7 @@ async function verifyPayment(req, res) {
       notifyDoctor({ ...appointment, meetLink }),
     ]).catch((err) => console.error("Notification error:", err.message));
 
-    return res.json({ success: true, message: "Payment confirmed!" });
+    return res.json({ success: true, meetLink, message: "Payment confirmed!" });
   } catch (err) {
     console.error("verifyPayment error:", err.message);
     return res.status(500).json({ success: false, message: "Server error." });
