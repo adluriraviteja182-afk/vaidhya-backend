@@ -1,9 +1,9 @@
+// routes/appointments.js
 const express = require("express");
 const router = express.Router();
 const { body } = require("express-validator");
 const appointmentController = require("../controllers/appointmentController");
 
-// Validation rules reused across routes
 const bookingValidation = [
   body("patient_name").trim().notEmpty().withMessage("Name is required"),
   body("patient_email").isEmail().withMessage("Valid email is required"),
@@ -14,13 +14,16 @@ const bookingValidation = [
   body("appointment_time").trim().notEmpty().withMessage("Time is required"),
 ];
 
-// POST /api/appointments         → book appointment + create Razorpay order
+// GET  /api/appointments/stats          → dashboard stats (must come before /)
+router.get("/stats", appointmentController.getDashboardStats);
+
+// POST /api/appointments                → book + create Razorpay order
 router.post("/", bookingValidation, appointmentController.bookAppointment);
 
-// POST /api/appointments/verify-payment → verify Razorpay signature + confirm
+// POST /api/appointments/verify-payment → verify signature + confirm
 router.post("/verify-payment", appointmentController.verifyPayment);
 
-// GET  /api/appointments         → list all appointments (admin use)
+// GET  /api/appointments                → list all (admin)
 router.get("/", appointmentController.listAppointments);
 
 module.exports = router;
