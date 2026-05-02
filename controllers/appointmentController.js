@@ -21,26 +21,25 @@ async function bookAppointment(req, res) {
   } = req.body;
 
   try {
-    const amount = 100; // ₹1 in paise
+    const amount = 500; // Rs.5 in paise
     const order = await razorpay.orders.create({
       amount,
       currency: "INR",
       receipt: `receipt_${Date.now()}`,
     });
 
-    const result = await db.query(
+    const [result] = await db.execute(
       `INSERT INTO appointments
         (patient_name, patient_email, patient_phone, doctor, appointment_type,
          appointment_date, appointment_time, reason, status, razorpay_order_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'pending_payment', $9)
-       RETURNING id`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', ?)`,
       [patient_name, patient_email, patient_phone, doctor, appointment_type,
        appointment_date, appointment_time, reason || null, order.id]
     );
 
     return res.status(201).json({
       success: true,
-      appointmentId: result.rows[0].id,
+      appointmentId: result.insertId,
       razorpayOrderId: order.id,
       amount,
       currency: "INR",
@@ -57,7 +56,6 @@ async function verifyPayment(req, res) {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, appointmentId } = req.body;
 
   try {
-    // Verify Razorpay signature
     const expectedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -68,19 +66,16 @@ async function verifyPayment(req, res) {
 
     const meetLink = generateMeetLink();
 
-    // Confirm appointment
-    await db.query(
+    await db.execute(
       `UPDATE appointments
-       SET status = 'confirmed', meet_link = $1, razorpay_payment_id = $2
-       WHERE id = $3`,
+       SET status = 'confirmed', meet_link = ?, razorpay_payment_id = ?
+       WHERE id = ?`,
       [meetLink, razorpay_payment_id, appointmentId]
     );
 
-    // Fetch full appointment for notifications
-    const result = await db.query("SELECT * FROM appointments WHERE id = $1", [appointmentId]);
-    const appointment = result.rows[0];
+    const [rows] = await db.execute("SELECT * FROM appointments WHERE id = ?", [appointmentId]);
+    const appointment = rows[0];
 
-    // Send notifications (non-blocking — don't fail the response if this errors)
     Promise.all([
       notifyPatient({ ...appointment, meetLink }),
       notifyDoctor({ ...appointment, meetLink }),
@@ -96,8 +91,8 @@ async function verifyPayment(req, res) {
 // ─── GET /api/appointments ─────────────────────────────────────
 async function listAppointments(req, res) {
   try {
-    const result = await db.query("SELECT * FROM appointments ORDER BY created_at DESC");
-    return res.json({ success: true, data: result.rows });
+    const [rows] = await db.execute("SELECT * FROM appointments ORDER BY created_at DESC");
+    return res.json({ success: true, data: rows });
   } catch (err) {
     console.error("listAppointments error:", err.message);
     return res.status(500).json({ success: false, message: "Server error." });
