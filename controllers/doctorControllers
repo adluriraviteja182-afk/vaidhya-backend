@@ -1,0 +1,92 @@
+// controllers/doctorController.js
+// Doctor profiles served from backend — single source of truth.
+// Frontend no longer has any hardcoded doctor data.
+
+const DOCTORS = [
+  {
+    key: "pranaba",
+    name: "Dr. B. Pranaba Nanda Patro",
+    shortName: "Dr. Pranaba",
+    title: "MBBS, MD (General Medicine)",
+    badge: "Diabetologist · Internal Medicine",
+    tagline: "Chronic disease & lifestyle care expert",
+    desc: "Special focus on diabetes, BP, thyroid and chronic disease management. Trusted by 1,500+ patients across Hyderabad for evidence-based, compassionate internal medicine. With over 15 years of clinical experience, Dr. Pranaba brings a thorough, patient-first approach to every consultation.",
+    languages: ["English", "Hindi", "Odia"],
+    imageSrc: "/images/doctor-pranaba1.jpeg",
+    available: true,
+    experience: "15+ yrs",
+    patients: "1,500+",
+    rating: "4.9",
+    color: "#00C9A7",
+    education: [
+      { degree: "MBBS", institution: "SCB Medical College, Cuttack", year: "2005" },
+      { degree: "MD, General Medicine", institution: "AIIMS Bhubaneswar", year: "2010" },
+    ],
+    specializations: [
+      "Diabetes Management",
+      "Hypertension",
+      "Thyroid Disorders",
+      "Internal Medicine",
+      "Chronic Disease Care",
+      "Lipid Disorders",
+      "Lifestyle Medicine",
+    ],
+    quote: "Good medicine is about listening first, prescribing second.",
+    awards: [
+      { title: "Health Service Excellence Award", imageSrc: "/images/award-pranaba1.jpeg" },
+    ],
+    certificates: [
+      "/images/cert-pranaba1.jpeg",
+      "/images/cert-pranaba3.jpeg",
+      "/images/cert-pranaba4.jpeg",
+      "/images/cert-pranaba5.jpeg",
+      "/images/cert-pranaba7.jpeg",
+      "/images/cert-pranaba8.jpeg",
+    ],
+  },
+  {
+    key: "nibedita",
+    name: "Dr. Nibedita Mahapatro",
+    shortName: "Dr. Nibedita",
+    title: "MBBS, MS (Obstetrics & Gynecology)",
+    badge: "Obstetrician · Gynecologist",
+    tagline: "Women's health & pregnancy specialist",
+    desc: "Pregnancy care, menstrual issues, PCOS and comprehensive women's health. Known for warm, patient-focused consultations and modern evidence-based gynecological care. Dr. Nibedita has helped 800+ women across every stage of reproductive health.",
+    languages: ["English", "Hindi", "Odia"],
+    imageSrc: "/images/doctor-nibedita1.jpeg",
+    available: true,
+    experience: "12+ yrs",
+    patients: "800+",
+    rating: "4.8",
+    color: "#F5A623",
+    education: [
+      { degree: "MBBS", institution: "MKCG Medical College, Berhampur", year: "2007" },
+      { degree: "MS, Obstetrics & Gynecology", institution: "SCB Medical College, Cuttack", year: "2013" },
+    ],
+    specializations: [
+      "Pregnancy & Antenatal Care",
+      "PCOS & Hormonal Issues",
+      "Menstrual Disorders",
+      "Fertility Consultation",
+      "Women's Wellness",
+      "High-Risk Pregnancy",
+      "Laparoscopic Gynecology",
+    ],
+    quote: "Every woman deserves healthcare that respects her story.",
+    awards: [],
+    certificates: [],
+  },
+];
+
+function listDoctors(req, res) {
+  res.json({ success: true, data: DOCTORS });
+}
+
+function getDoctorByKey(req, res) {
+  const doctor = DOCTORS.find((d) => d.key === req.params.key);
+  if (!doctor)
+    return res.status(404).json({ success: false, message: "Doctor not found." });
+  res.json({ success: true, data: doctor });
+}
+
+module.exports = { listDoctors, getDoctorByKey };
