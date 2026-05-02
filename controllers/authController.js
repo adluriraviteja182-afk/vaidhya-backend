@@ -19,30 +19,29 @@ async function sendOTP(req, res) {
 
   const { name, phone } = req.body;
   const otp = generateOTP();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
   try {
     // Upsert user
-    await db.query(
+    await db.execute(
       `INSERT INTO users (name, phone, verified, created_at)
-       VALUES ($1, $2, false, NOW())
-       ON CONFLICT (phone) DO UPDATE SET name = EXCLUDED.name`,
+       VALUES (?, ?, false, NOW())
+       ON DUPLICATE KEY UPDATE name = VALUES(name)`,
       [name, phone]
     );
 
     // Upsert OTP token
-    await db.query(
+    await db.execute(
       `INSERT INTO otp_tokens (phone, otp_hash, expires_at, attempts)
-       VALUES ($1, $2, $3, 0)
-       ON CONFLICT (phone) DO UPDATE
-         SET otp_hash = EXCLUDED.otp_hash,
-             expires_at = EXCLUDED.expires_at,
-             attempts = 0`,
+       VALUES (?, ?, ?, 0)
+       ON DUPLICATE KEY UPDATE
+         otp_hash = VALUES(otp_hash),
+         expires_at = VALUES(expires_at),
+         attempts = 0`,
       [phone, hashOTP(otp), expiresAt]
     );
 
     await sendOTPSMS(phone, otp);
-
     return res.json({ success: true, message: "OTP sent!" });
   } catch (err) {
     console.error("sendOTP error:", err.message);
@@ -59,12 +58,12 @@ async function verifyOTP(req, res) {
   const { phone, otp } = req.body;
 
   try {
-    const result = await db.query("SELECT * FROM otp_tokens WHERE phone = $1", [phone]);
+    const [rows] = await db.execute("SELECT * FROM otp_tokens WHERE phone = ?", [phone]);
 
-    if (result.rows.length === 0)
+    if (rows.length === 0)
       return res.status(400).json({ success: false, message: "OTP not found. Please request again." });
 
-    const record = result.rows[0];
+    const record = rows[0];
 
     if (new Date() > new Date(record.expires_at))
       return res.status(400).json({ success: false, message: "OTP expired. Please request again." });
@@ -72,22 +71,24 @@ async function verifyOTP(req, res) {
     if (record.attempts >= 5)
       return res.status(400).json({ success: false, message: "Too many attempts. Please request a new OTP." });
 
-    // Increment attempts first (prevents brute force even on error)
-    await db.query("UPDATE otp_tokens SET attempts = attempts + 1 WHERE phone = $1", [phone]);
+    await db.execute("UPDATE otp_tokens SET attempts = attempts + 1 WHERE phone = ?", [phone]);
 
     if (record.otp_hash !== hashOTP(otp))
       return res.status(400).json({ success: false, message: "Incorrect OTP. Please try again." });
 
-    // Mark verified
-    const userResult = await db.query(
-      "UPDATE users SET verified = true WHERE phone = $1 RETURNING id, name, phone",
+    const [userRows] = await db.execute(
+      "UPDATE users SET verified = true WHERE phone = ?",
       [phone]
     );
 
-    // Clean up token
-    await db.query("DELETE FROM otp_tokens WHERE phone = $1", [phone]);
+    const [updatedUser] = await db.execute(
+      "SELECT id, name, phone FROM users WHERE phone = ?",
+      [phone]
+    );
 
-    return res.json({ success: true, user: userResult.rows[0] });
+    await db.execute("DELETE FROM otp_tokens WHERE phone = ?", [phone]);
+
+    return res.json({ success: true, user: updatedUser[0] });
   } catch (err) {
     console.error("verifyOTP error:", err.message);
     return res.status(500).json({ success: false, message: "Server error." });
