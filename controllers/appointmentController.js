@@ -5,7 +5,6 @@ const razorpay = require("../config/razorpay");
 const { notifyPatient, notifyDoctor } = require("../services/notificationService");
 const { generateMeetLink } = require("../services/meetService");
 
-// ─── POST /api/appointments ────────────────────────────────────
 async function bookAppointment(req, res) {
   const errors = validationResult(req);
   if (!errors.isEmpty())
@@ -21,7 +20,7 @@ async function bookAppointment(req, res) {
   } = req.body;
 
   try {
-    const amount = 500; // Rs.5 in paise
+    const amount = 500;
     const order = await razorpay.orders.create({
       amount,
       currency: "INR",
@@ -51,7 +50,6 @@ async function bookAppointment(req, res) {
   }
 }
 
-// ─── POST /api/appointments/verify-payment ─────────────────────
 async function verifyPayment(req, res) {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, appointmentId } = req.body;
 
@@ -88,7 +86,6 @@ async function verifyPayment(req, res) {
   }
 }
 
-// ─── GET /api/appointments ─────────────────────────────────────
 async function listAppointments(req, res) {
   try {
     const [rows] = await db.execute("SELECT * FROM appointments ORDER BY created_at DESC");
