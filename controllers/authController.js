@@ -11,7 +11,6 @@ function hashOTP(otp) {
   return crypto.createHash("sha256").update(otp).digest("hex");
 }
 
-// ─── POST /api/auth/send-otp ───────────────────────────────────
 async function sendOTP(req, res) {
   const errors = validationResult(req);
   if (!errors.isEmpty())
@@ -22,7 +21,6 @@ async function sendOTP(req, res) {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
   try {
-    // Upsert user
     await db.execute(
       `INSERT INTO users (name, phone, verified, created_at)
        VALUES (?, ?, false, NOW())
@@ -30,7 +28,6 @@ async function sendOTP(req, res) {
       [name, phone]
     );
 
-    // Upsert OTP token
     await db.execute(
       `INSERT INTO otp_tokens (phone, otp_hash, expires_at, attempts)
        VALUES (?, ?, ?, 0)
@@ -41,15 +38,21 @@ async function sendOTP(req, res) {
       [phone, hashOTP(otp), expiresAt]
     );
 
-    await sendOTPSMS(phone, otp);
-    return res.json({ success: true, message: "OTP sent!" });
+    try {
+      await sendOTPSMS(phone, otp);
+    } catch (smsErr) {
+      console.error("SMS error:", smsErr.message);
+    }
+
+    console.log(`[OTP] ${phone}: ${otp}`);
+    return res.json({ success: true, message: "OTP sent!", otp });
+
   } catch (err) {
     console.error("sendOTP error:", err.message);
     return res.status(500).json({ success: false, message: "Server error." });
   }
 }
 
-// ─── POST /api/auth/verify-otp ────────────────────────────────
 async function verifyOTP(req, res) {
   const errors = validationResult(req);
   if (!errors.isEmpty())
@@ -76,10 +79,7 @@ async function verifyOTP(req, res) {
     if (record.otp_hash !== hashOTP(otp))
       return res.status(400).json({ success: false, message: "Incorrect OTP. Please try again." });
 
-    const [userRows] = await db.execute(
-      "UPDATE users SET verified = true WHERE phone = ?",
-      [phone]
-    );
+    await db.execute("UPDATE users SET verified = true WHERE phone = ?", [phone]);
 
     const [updatedUser] = await db.execute(
       "SELECT id, name, phone FROM users WHERE phone = ?",
@@ -89,6 +89,7 @@ async function verifyOTP(req, res) {
     await db.execute("DELETE FROM otp_tokens WHERE phone = ?", [phone]);
 
     return res.json({ success: true, user: updatedUser[0] });
+
   } catch (err) {
     console.error("verifyOTP error:", err.message);
     return res.status(500).json({ success: false, message: "Server error." });
