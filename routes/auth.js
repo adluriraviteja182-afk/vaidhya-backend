@@ -1,28 +1,28 @@
 const express = require("express");
 const router = express.Router();
+const { body } = require("express-validator");
+const { sendOTP, verifyOTP } = require("../controllers/authController");
 
-// ✅ TEST ROUTE (to check working)
 router.get("/test", (req, res) => {
   res.json({ message: "Auth route working ✅" });
 });
 
-// ✅ SEND OTP ROUTE
-router.post("/send-otp", (req, res) => {
-  const { name, mobile } = req.body;
+router.post(
+  "/send-otp",
+  [
+    body("name").trim().notEmpty().withMessage("Name is required"),
+    body("phone").trim().notEmpty().withMessage("Phone is required"),
+  ],
+  sendOTP
+);
 
-  if (!name || !mobile) {
-    return res.status(400).json({ message: "Missing fields" });
-  }
-
-  // Dummy OTP
-  const otp = Math.floor(100000 + Math.random() * 900000);
-
-  console.log(`OTP for ${mobile}: ${otp}`);
-
-  res.json({
-    message: "OTP sent successfully",
-    otp // remove later in production
-  });
-});
+router.post(
+  "/verify-otp",
+  [
+    body("phone").trim().notEmpty().withMessage("Phone is required"),
+    body("otp").trim().notEmpty().withMessage("OTP is required"),
+  ],
+  verifyOTP
+);
 
 module.exports = router;
