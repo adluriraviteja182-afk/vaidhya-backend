@@ -20,6 +20,8 @@ async function initDB() {
         patient_name VARCHAR(100) NOT NULL,
         patient_email VARCHAR(100) NOT NULL,
         patient_phone VARCHAR(20) NOT NULL,
+        patient_age INT,
+        gender VARCHAR(20),
         doctor VARCHAR(50) NOT NULL,
         appointment_type VARCHAR(50) NOT NULL,
         appointment_date DATE NOT NULL,
