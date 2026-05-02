@@ -1,3 +1,4 @@
+// controllers/appointmentController.js
 const { validationResult } = require("express-validator");
 const crypto = require("crypto");
 const db = require("../config/db");
@@ -100,4 +101,42 @@ async function listAppointments(req, res) {
   }
 }
 
-module.exports = { bookAppointment, verifyPayment, listAppointments };
+// NEW — used by admin dashboard stats cards
+async function getDashboardStats(req, res) {
+  try {
+    const today = new Date().toISOString().split("T")[0];
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+
+    const [[dailyRow]] = await db.execute(
+      "SELECT COUNT(*) AS cnt FROM appointments WHERE appointment_date = ?",
+      [today]
+    );
+    const [[weeklyRow]] = await db.execute(
+      "SELECT COUNT(*) AS cnt FROM appointments WHERE appointment_date >= ?",
+      [weekAgo]
+    );
+    const [[teleRow]] = await db.execute(
+      "SELECT COUNT(*) AS cnt FROM appointments WHERE appointment_type = 'teleconsult'"
+    );
+    const [[totalRow]] = await db.execute(
+      "SELECT COUNT(*) AS cnt FROM appointments"
+    );
+
+    return res.json({
+      success: true,
+      data: {
+        dailyPatients: dailyRow.cnt,
+        weeklyPatients: weeklyRow.cnt,
+        teleconsults: teleRow.cnt,
+        totalPatients: totalRow.cnt,
+      },
+    });
+  } catch (err) {
+    console.error("getDashboardStats error:", err.message);
+    return res.status(500).json({ success: false, message: "Server error." });
+  }
+}
+
+module.exports = { bookAppointment, verifyPayment, listAppointments, getDashboardStats };
