@@ -12,6 +12,23 @@ const pool = mysql.createPool({
   ssl: process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : false,
 });
 
+async function columnExists(table, column) {
+  const [rows] = await pool.execute(
+    `SELECT COUNT(*) as cnt FROM information_schema.COLUMNS 
+     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+    [table, column]
+  );
+  return rows[0].cnt > 0;
+}
+
+async function addColumnIfMissing(table, column, definition) {
+  const exists = await columnExists(table, column);
+  if (!exists) {
+    await pool.execute(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
+    console.log(`[db patch] Added column ${table}.${column}`);
+  }
+}
+
 async function initDB() {
   try {
     await pool.execute(`
@@ -59,20 +76,14 @@ async function initDB() {
       )
     `);
 
-    const patches = [
-      "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS patient_age     INT         DEFAULT NULL",
-      "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS gender          VARCHAR(20) DEFAULT NULL",
-      "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS prev_report_url TEXT        DEFAULT NULL",
-      "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS mri_report_url  TEXT        DEFAULT NULL",
-      "ALTER TABLE users        ADD COLUMN IF NOT EXISTS email           VARCHAR(100) DEFAULT NULL",
-      "ALTER TABLE users        ADD COLUMN IF NOT EXISTS gender          VARCHAR(20) DEFAULT NULL",
-      "ALTER TABLE users        ADD COLUMN IF NOT EXISTS dob             DATE        DEFAULT NULL",
-    ];
-
-    for (const sql of patches) {
-      try { await pool.execute(sql); }
-      catch (e) { if (!e.message.includes("Duplicate column")) console.warn("[db patch]", e.message); }
-    }
+    // Safe patches — works on all MySQL versions including Aiven
+    await addColumnIfMissing("appointments", "patient_age",     "INT DEFAULT NULL");
+    await addColumnIfMissing("appointments", "gender",          "VARCHAR(20) DEFAULT NULL");
+    await addColumnIfMissing("appointments", "prev_report_url", "TEXT DEFAULT NULL");
+    await addColumnIfMissing("appointments", "mri_report_url",  "TEXT DEFAULT NULL");
+    await addColumnIfMissing("users",        "email",           "VARCHAR(100) DEFAULT NULL");
+    await addColumnIfMissing("users",        "gender",          "VARCHAR(20) DEFAULT NULL");
+    await addColumnIfMissing("users",        "dob",             "DATE DEFAULT NULL");
 
     console.log("✅ All tables ready");
   } catch (err) {
