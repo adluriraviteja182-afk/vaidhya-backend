@@ -37,6 +37,7 @@ async function login(req, res) {
     // Fallback: legacy env-var check (backward compat)
     const ADMIN_USERNAME = process.env.ADMIN_USERNAME || "admin";
     const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@1234";
+
     if (username.trim() === ADMIN_USERNAME && password.trim() === ADMIN_PASSWORD) {
       return res.json({
         success: true,
