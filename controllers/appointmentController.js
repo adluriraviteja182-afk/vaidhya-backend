@@ -1,11 +1,11 @@
-// controllers/appointmentController.js
 const { validationResult } = require("express-validator");
-const crypto = require("crypto");
-const db = require("../config/db");
+const crypto  = require("crypto");
+const db      = require("../config/db");
 const razorpay = require("../config/razorpay");
 const { notifyPatient, notifyDoctor } = require("../services/notificationService");
-const { generateMeetLink } = require("../services/meetService");
+const { generateMeetLink }            = require("../services/meetService");
 
+// POST /api/appointments
 async function bookAppointment(req, res) {
   const errors = validationResult(req);
   if (!errors.isEmpty())
@@ -19,35 +19,38 @@ async function bookAppointment(req, res) {
     patient_age, gender,
     doctor, appointment_type, appointment_date,
     appointment_time, reason,
+    prev_report_url, mri_report_url,   // ← Cloudinary URLs from frontend
   } = req.body;
 
   try {
     const amount = 500;
-    const order = await razorpay.orders.create({
-      amount,
-      currency: "INR",
-      receipt: `receipt_${Date.now()}`,
+    const order  = await razorpay.orders.create({
+      amount, currency: "INR", receipt: `receipt_${Date.now()}`,
     });
 
     const [result] = await db.execute(
       `INSERT INTO appointments
         (patient_name, patient_email, patient_phone, patient_age, gender,
          doctor, appointment_type, appointment_date, appointment_time,
-         reason, status, razorpay_order_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', ?)`,
-      [patient_name, patient_email, patient_phone,
-       patient_age || null, gender || null,
-       doctor, appointment_type, appointment_date,
-       appointment_time, reason || null, order.id]
+         reason, prev_report_url, mri_report_url, status, razorpay_order_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', ?)`,
+      [
+        patient_name, patient_email, patient_phone,
+        patient_age ? parseInt(patient_age) : null, gender || null,
+        doctor, appointment_type, appointment_date, appointment_time,
+        reason || null,
+        prev_report_url || null,
+        mri_report_url  || null,
+        order.id,
+      ]
     );
 
     return res.status(201).json({
       success: true,
-      appointmentId: result.insertId,
+      appointmentId:   result.insertId,
       razorpayOrderId: order.id,
-      amount,
-      currency: "INR",
-      razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+      amount, currency: "INR",
+      razorpayKeyId:   process.env.RAZORPAY_KEY_ID,
     });
   } catch (err) {
     console.error("bookAppointment error:", err.message);
@@ -55,6 +58,7 @@ async function bookAppointment(req, res) {
   }
 }
 
+// POST /api/appointments/verify-payment
 async function verifyPayment(req, res) {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, appointmentId } = req.body;
 
@@ -70,9 +74,7 @@ async function verifyPayment(req, res) {
     const meetLink = generateMeetLink();
 
     await db.execute(
-      `UPDATE appointments
-       SET status = 'confirmed', meet_link = ?, razorpay_payment_id = ?
-       WHERE id = ?`,
+      `UPDATE appointments SET status='confirmed', meet_link=?, razorpay_payment_id=? WHERE id=?`,
       [meetLink, razorpay_payment_id, appointmentId]
     );
 
@@ -91,6 +93,7 @@ async function verifyPayment(req, res) {
   }
 }
 
+// GET /api/appointments
 async function listAppointments(req, res) {
   try {
     const [rows] = await db.execute("SELECT * FROM appointments ORDER BY created_at DESC");
@@ -101,38 +104,23 @@ async function listAppointments(req, res) {
   }
 }
 
-// NEW — used by admin dashboard stats cards
+// GET /api/appointments/stats
 async function getDashboardStats(req, res) {
   try {
-    const today = new Date().toISOString().split("T")[0];
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split("T")[0];
+    const today   = new Date().toISOString().split("T")[0];
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
-    const [[dailyRow]] = await db.execute(
-      "SELECT COUNT(*) AS cnt FROM appointments WHERE appointment_date = ?",
-      [today]
-    );
-    const [[weeklyRow]] = await db.execute(
-      "SELECT COUNT(*) AS cnt FROM appointments WHERE appointment_date >= ?",
-      [weekAgo]
-    );
-    const [[teleRow]] = await db.execute(
-      "SELECT COUNT(*) AS cnt FROM appointments WHERE appointment_type = 'teleconsult'"
-    );
-    const [[totalRow]] = await db.execute(
-      "SELECT COUNT(*) AS cnt FROM appointments"
-    );
+    const [[dailyRow]]  = await db.execute("SELECT COUNT(*) AS cnt FROM appointments WHERE appointment_date = ?", [today]);
+    const [[weeklyRow]] = await db.execute("SELECT COUNT(*) AS cnt FROM appointments WHERE appointment_date >= ?", [weekAgo]);
+    const [[teleRow]]   = await db.execute("SELECT COUNT(*) AS cnt FROM appointments WHERE appointment_type = 'teleconsult'");
+    const [[totalRow]]  = await db.execute("SELECT COUNT(*) AS cnt FROM appointments");
 
-    return res.json({
-      success: true,
-      data: {
-        dailyPatients: dailyRow.cnt,
-        weeklyPatients: weeklyRow.cnt,
-        teleconsults: teleRow.cnt,
-        totalPatients: totalRow.cnt,
-      },
-    });
+    return res.json({ success: true, data: {
+      dailyPatients:  dailyRow.cnt,
+      weeklyPatients: weeklyRow.cnt,
+      teleconsults:   teleRow.cnt,
+      totalPatients:  totalRow.cnt,
+    }});
   } catch (err) {
     console.error("getDashboardStats error:", err.message);
     return res.status(500).json({ success: false, message: "Server error." });
