@@ -4,8 +4,6 @@ const cors    = require("cors");
 
 const appointmentRoutes  = require("./routes/appointments");
 const authRoutes         = require("./routes/auth");
-const adminRoutes        = require("./routes/admin");
-const adminAuthRoutes    = require("./routes/adminAuth");
 const uploadRoutes       = require("./routes/upload");
 const slotRoutes         = require("./routes/slots");
 const prescriptionRoutes = require("./routes/prescriptions");
@@ -67,8 +65,6 @@ app.get("/debug", (req, res) => {
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 app.use("/api/appointments",  appointmentRoutes);
-app.use("/api/auth",          authRoutes);
-app.use("/api/admin",         adminRoutes);
 app.use("/api/admin-auth",    adminAuthRoutes);
 app.use("/api/upload",        uploadRoutes);
 app.use("/api/slots",         slotRoutes);
